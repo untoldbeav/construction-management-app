@@ -29,17 +29,21 @@ export interface IStorage {
   // Photos
   getProjectPhotos(projectId: string): Promise<Photo[]>;
   createPhoto(photo: InsertPhoto): Promise<Photo>;
+  updatePhoto(id: string, updates: Partial<InsertPhoto>): Promise<Photo | null>;
   deletePhoto(id: string): Promise<boolean>;
   
   // Documents
   getProjectDocuments(projectId: string): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
+  updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document | null>;
   deleteDocument(id: string): Promise<boolean>;
   
   // Material Tests
   getMaterialTests(): Promise<MaterialTest[]>;
   getMaterialTestsByCategory(category: string): Promise<MaterialTest[]>;
   createMaterialTest(test: InsertMaterialTest): Promise<MaterialTest>;
+  updateMaterialTest(id: string, updates: Partial<InsertMaterialTest>): Promise<MaterialTest | null>;
+  deleteMaterialTest(id: string): Promise<boolean>;
   
   // Test Results
   getTestResults(): Promise<(TestResult & { projectName: string; testName: string })[]>;
@@ -48,11 +52,15 @@ export interface IStorage {
   // Reminders
   getActiveReminders(): Promise<(Reminder & { projectName: string })[]>;
   createReminder(reminder: InsertReminder): Promise<Reminder>;
+  updateReminder(id: string, updates: Partial<InsertReminder>): Promise<Reminder | null>;
+  deleteReminder(id: string): Promise<boolean>;
   markReminderComplete(id: string): Promise<boolean>;
   
   // Calendar Events
   getCalendarEvents(month?: number, year?: number): Promise<(CalendarEvent & { projectName: string })[]>;
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  updateCalendarEvent(id: string, updates: Partial<InsertCalendarEvent>): Promise<CalendarEvent | null>;
+  deleteCalendarEvent(id: string): Promise<boolean>;
   
   // Stats
   getProjectStats(): Promise<ProjectStats>;
@@ -239,6 +247,18 @@ export class MemStorage implements IStorage {
     return newPhoto;
   }
 
+  async updatePhoto(id: string, updates: Partial<InsertPhoto>): Promise<Photo | null> {
+    const photo = this.photos.get(id);
+    if (!photo) return null;
+    
+    const updatedPhoto: Photo = {
+      ...photo,
+      ...updates,
+    };
+    this.photos.set(id, updatedPhoto);
+    return updatedPhoto;
+  }
+
   async deletePhoto(id: string): Promise<boolean> {
     return this.photos.delete(id);
   }
@@ -258,6 +278,18 @@ export class MemStorage implements IStorage {
     };
     this.documents.set(id, newDocument);
     return newDocument;
+  }
+
+  async updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document | null> {
+    const document = this.documents.get(id);
+    if (!document) return null;
+    
+    const updatedDocument: Document = {
+      ...document,
+      ...updates,
+    };
+    this.documents.set(id, updatedDocument);
+    return updatedDocument;
   }
 
   async deleteDocument(id: string): Promise<boolean> {
@@ -283,6 +315,23 @@ export class MemStorage implements IStorage {
     };
     this.materialTests.set(id, newTest);
     return newTest;
+  }
+
+  async updateMaterialTest(id: string, updates: Partial<InsertMaterialTest>): Promise<MaterialTest | null> {
+    const test = this.materialTests.get(id);
+    if (!test) return null;
+    
+    const updatedTest: MaterialTest = {
+      ...test,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.materialTests.set(id, updatedTest);
+    return updatedTest;
+  }
+
+  async deleteMaterialTest(id: string): Promise<boolean> {
+    return this.materialTests.delete(id);
   }
 
   async getTestResults(): Promise<(TestResult & { projectName: string; testName: string })[]> {
@@ -332,6 +381,22 @@ export class MemStorage implements IStorage {
     return newReminder;
   }
 
+  async updateReminder(id: string, updates: Partial<InsertReminder>): Promise<Reminder | null> {
+    const reminder = this.reminders.get(id);
+    if (!reminder) return null;
+    
+    const updatedReminder: Reminder = {
+      ...reminder,
+      ...updates,
+    };
+    this.reminders.set(id, updatedReminder);
+    return updatedReminder;
+  }
+
+  async deleteReminder(id: string): Promise<boolean> {
+    return this.reminders.delete(id);
+  }
+
   async markReminderComplete(id: string): Promise<boolean> {
     const reminder = this.reminders.get(id);
     if (!reminder) return false;
@@ -368,6 +433,22 @@ export class MemStorage implements IStorage {
     };
     this.calendarEvents.set(id, newEvent);
     return newEvent;
+  }
+
+  async updateCalendarEvent(id: string, updates: Partial<InsertCalendarEvent>): Promise<CalendarEvent | null> {
+    const event = this.calendarEvents.get(id);
+    if (!event) return null;
+    
+    const updatedEvent: CalendarEvent = {
+      ...event,
+      ...updates,
+    };
+    this.calendarEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+
+  async deleteCalendarEvent(id: string): Promise<boolean> {
+    return this.calendarEvents.delete(id);
   }
 
   async getProjectStats(): Promise<ProjectStats> {

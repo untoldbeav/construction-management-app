@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
+import ProjectDetails from "@/pages/project-details";
 import Calendar from "@/pages/calendar";
 import Materials from "@/pages/materials";
 import Reminders from "@/pages/reminders";
@@ -18,6 +19,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/projects" component={Projects} />
+      <Route path="/projects/:projectId" component={ProjectDetails} />
       <Route path="/calendar" component={Calendar} />
       <Route path="/materials" component={Materials} />
       <Route path="/reminders" component={Reminders} />

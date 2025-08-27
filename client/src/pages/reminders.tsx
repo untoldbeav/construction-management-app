@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Plus, Clock, AlertTriangle, CheckCircle, Bell, Droplets } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle, Bell, Droplets, Edit, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertReminderSchema, type Reminder, type InsertReminder, type ProjectWithCounts } from "@shared/schema";
@@ -18,6 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Reminders() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedReminder, setSelectedReminder] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -36,6 +40,7 @@ export default function Reminders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
       setIsCreateDialogOpen(false);
+      form.reset();
       toast({
         title: "Reminder created",
         description: "New inspection reminder has been set",
@@ -44,6 +49,51 @@ export default function Reminders() {
     onError: (error) => {
       toast({
         title: "Creation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateReminderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertReminder> }) => {
+      return apiRequest("PATCH", `/api/reminders/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setIsEditDialogOpen(false);
+      setSelectedReminder(null);
+      editForm.reset();
+      toast({
+        title: "Reminder updated",
+        description: "Inspection reminder has been updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteReminderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/reminders/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reminders"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedReminder(null);
+      toast({
+        title: "Reminder deleted",
+        description: "Inspection reminder has been deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
         description: error.message,
         variant: "destructive",
       });
@@ -80,8 +130,46 @@ export default function Reminders() {
     },
   });
 
+  const editForm = useForm<InsertReminder>({
+    resolver: zodResolver(insertReminderSchema),
+    defaultValues: {
+      projectId: "",
+      title: "",
+      type: "599",
+      scheduledFor: new Date(),
+    },
+  });
+
   const onSubmit = (data: InsertReminder) => {
     createReminderMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: InsertReminder) => {
+    if (selectedReminder) {
+      updateReminderMutation.mutate({ id: selectedReminder.id, data });
+    }
+  };
+
+  const handleEditReminder = (reminder: any) => {
+    setSelectedReminder(reminder);
+    editForm.reset({
+      projectId: reminder.projectId,
+      title: reminder.title,
+      type: reminder.type,
+      scheduledFor: new Date(reminder.scheduledFor),
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteReminder = (reminder: any) => {
+    setSelectedReminder(reminder);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedReminder) {
+      deleteReminderMutation.mutate(selectedReminder.id);
+    }
   };
 
   const getInspectionIcon = (type: string) => {
@@ -252,6 +340,140 @@ export default function Reminders() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Reminder Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Reminder</DialogTitle>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-reminder-project">
+                            <SelectValue placeholder="Select a project" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inspection Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-reminder-type">
+                            <SelectValue placeholder="Select inspection type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="599">599 Inspection</SelectItem>
+                          <SelectItem value="sw3p">SW3P Inspection</SelectItem>
+                          <SelectItem value="material_test">Material Testing</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter reminder title" {...field} data-testid="input-edit-reminder-title" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="scheduledFor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Scheduled Date & Time</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="datetime-local"
+                          value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
+                          onChange={(e) => field.onChange(new Date(e.target.value))}
+                          data-testid="input-edit-reminder-datetime"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsEditDialogOpen(false)}
+                    data-testid="button-cancel-edit-reminder"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateReminderMutation.isPending}
+                    data-testid="button-update-reminder"
+                  >
+                    {updateReminderMutation.isPending ? "Updating..." : "Update Reminder"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Reminder Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Reminder</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the reminder "{selectedReminder?.title}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-reminder">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete}
+                disabled={deleteReminderMutation.isPending}
+                className="bg-destructive hover:bg-destructive/90"
+                data-testid="button-confirm-delete-reminder"
+              >
+                {deleteReminderMutation.isPending ? "Deleting..." : "Delete Reminder"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Active Reminders */}
@@ -294,18 +516,30 @@ export default function Reminders() {
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditReminder(reminder)}
+                      data-testid={`button-edit-reminder-${reminder.id}`}
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteReminder(reminder)}
+                      data-testid={`button-delete-reminder-${reminder.id}`}
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Delete
+                    </Button>
                     <Button 
                       onClick={() => markCompleteMutation.mutate(reminder.id)}
                       disabled={markCompleteMutation.isPending}
                       data-testid={`button-mark-complete-${reminder.id}`}
                     >
                       Mark Complete
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      data-testid={`button-snooze-${reminder.id}`}
-                    >
-                      Snooze
                     </Button>
                   </div>
                 </div>

@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import ProjectCard from "@/components/project-card";
 import { Search, Plus, Filter } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertProjectSchema, type ProjectWithCounts, type InsertProject } from "@shared/schema";
+import { insertProjectSchema, type ProjectWithCounts, type InsertProject, type Project } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,8 +22,12 @@ export default function Projects() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<ProjectWithCounts | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: projects = [], isLoading } = useQuery<ProjectWithCounts[]>({
     queryKey: ["/api/projects"],
@@ -35,6 +41,7 @@ export default function Projects() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       setIsCreateDialogOpen(false);
+      form.reset();
       toast({
         title: "Project created",
         description: "New project has been created successfully",
@@ -43,6 +50,53 @@ export default function Projects() {
     onError: (error) => {
       toast({
         title: "Creation failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertProject> }) => {
+      return apiRequest("PATCH", `/api/projects/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setIsEditDialogOpen(false);
+      setSelectedProject(null);
+      editForm.reset();
+      toast({
+        title: "Project updated",
+        description: "Project has been updated successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/projects/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedProject(null);
+      toast({
+        title: "Project deleted",
+        description: "Project has been deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
         description: error.message,
         variant: "destructive",
       });
@@ -60,8 +114,52 @@ export default function Projects() {
     },
   });
 
+  const editForm = useForm<InsertProject>({
+    resolver: zodResolver(insertProjectSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      location: "",
+      status: "active",
+      type: "building",
+    },
+  });
+
   const onSubmit = (data: InsertProject) => {
     createProjectMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: InsertProject) => {
+    if (selectedProject) {
+      updateProjectMutation.mutate({ id: selectedProject.id, data });
+    }
+  };
+
+  const handleEditProject = (project: ProjectWithCounts) => {
+    setSelectedProject(project);
+    editForm.reset({
+      name: project.name,
+      description: project.description || "",
+      location: project.location || "",
+      status: project.status,
+      type: project.type,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteProject = (project: ProjectWithCounts) => {
+    setSelectedProject(project);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedProject) {
+      deleteProjectMutation.mutate(selectedProject.id);
+    }
+  };
+
+  const handleProjectClick = (project: ProjectWithCounts) => {
+    setLocation(`/projects/${project.id}`);
   };
 
   // Filter projects based on search and filters
@@ -209,6 +307,149 @@ export default function Projects() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Project Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Project</DialogTitle>
+            </DialogHeader>
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter project name" {...field} data-testid="input-edit-project-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter project description" {...field} data-testid="textarea-edit-project-description" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter project location" {...field} data-testid="input-edit-project-location" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-project-type">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="building">Building</SelectItem>
+                            <SelectItem value="infrastructure">Infrastructure</SelectItem>
+                            <SelectItem value="residential">Residential</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-project-status">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="review">Review</SelectItem>
+                            <SelectItem value="complete">Complete</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsEditDialogOpen(false)}
+                    data-testid="button-cancel-edit-project"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateProjectMutation.isPending}
+                    data-testid="button-update-project"
+                  >
+                    {updateProjectMutation.isPending ? "Updating..." : "Update Project"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Project</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{selectedProject?.name}"? This action cannot be undone and will also delete all associated photos, documents, and reminders.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete-project">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete}
+                disabled={deleteProjectMutation.isPending}
+                className="bg-destructive hover:bg-destructive/90"
+                data-testid="button-confirm-delete-project"
+              >
+                {deleteProjectMutation.isPending ? "Deleting..." : "Delete Project"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Search and Filters */}
@@ -292,6 +533,9 @@ export default function Projects() {
             <ProjectCard 
               key={project.id} 
               project={project}
+              onClick={() => handleProjectClick(project)}
+              onEdit={() => handleEditProject(project)}
+              onDelete={() => handleDeleteProject(project)}
             />
           ))}
         </div>

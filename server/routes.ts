@@ -115,6 +115,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/photos/:id", async (req, res) => {
+    try {
+      const updates = {
+        description: req.body.description,
+      };
+      const photo = await storage.updatePhoto(req.params.id, updates);
+      if (!photo) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      res.json(photo);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/photos/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePhoto(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete photo" });
+    }
+  });
+
   // Document routes
   app.get("/api/projects/:projectId/documents", async (req, res) => {
     try {
@@ -147,6 +174,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/documents/:id", async (req, res) => {
+    try {
+      const updates = {
+        originalName: req.body.originalName,
+        type: req.body.type,
+      };
+      const document = await storage.updateDocument(req.params.id, updates);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/documents/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteDocument(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+
   // Material test routes
   app.get("/api/material-tests", async (req, res) => {
     try {
@@ -167,6 +222,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(test);
     } catch (error) {
       res.status(400).json({ message: "Invalid test data" });
+    }
+  });
+
+  app.patch("/api/material-tests/:id", async (req, res) => {
+    try {
+      const updates = {
+        name: req.body.name,
+        category: req.body.category,
+        specification: req.body.specification,
+      };
+      const test = await storage.updateMaterialTest(req.params.id, updates);
+      if (!test) {
+        return res.status(404).json({ message: "Material test not found" });
+      }
+      res.json(test);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/material-tests/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteMaterialTest(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Material test not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete material test" });
     }
   });
 
@@ -212,6 +296,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/reminders/:id", async (req, res) => {
+    try {
+      const updates = {
+        projectId: req.body.projectId,
+        title: req.body.title,
+        type: req.body.type,
+        scheduledFor: req.body.scheduledFor ? new Date(req.body.scheduledFor) : undefined,
+      };
+      const reminder = await storage.updateReminder(req.params.id, updates);
+      if (!reminder) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      res.json(reminder);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/reminders/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteReminder(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete reminder" });
+    }
+  });
+
   // Calendar routes
   app.get("/api/calendar/events", async (req, res) => {
     try {
@@ -231,6 +345,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(event);
     } catch (error) {
       res.status(400).json({ message: "Invalid event data" });
+    }
+  });
+
+  app.patch("/api/calendar/events/:id", async (req, res) => {
+    try {
+      const updates = {
+        projectId: req.body.projectId,
+        title: req.body.title,
+        description: req.body.description,
+        date: req.body.date ? new Date(req.body.date) : undefined,
+        type: req.body.type,
+      };
+      const event = await storage.updateCalendarEvent(req.params.id, updates);
+      if (!event) {
+        return res.status(404).json({ message: "Calendar event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/calendar/events/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCalendarEvent(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Calendar event not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete calendar event" });
     }
   });
 

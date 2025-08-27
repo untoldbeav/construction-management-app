@@ -1,14 +1,17 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, FileText, Clock, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Camera, FileText, Clock, MapPin, Edit, Trash2 } from "lucide-react";
 import { type ProjectWithCounts } from "@shared/schema";
 
 interface ProjectCardProps {
   project: ProjectWithCounts;
   onClick?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export default function ProjectCard({ project, onClick }: ProjectCardProps) {
+export default function ProjectCard({ project, onClick, onEdit, onDelete }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
@@ -99,6 +102,38 @@ export default function ProjectCard({ project, onClick }: ProjectCardProps) {
               <Clock className="w-4 h-4 mr-1" />
               <span data-testid={`text-next-inspection-${project.id}`}>{project.nextInspection}</span>
             </span>
+          )}
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex items-center justify-end space-x-2 mt-4 pt-3 border-t border-border">
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              data-testid={`button-edit-project-${project.id}`}
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              data-testid={`button-delete-project-${project.id}`}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
           )}
         </div>
       </CardContent>
