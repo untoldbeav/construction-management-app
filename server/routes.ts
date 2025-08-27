@@ -1,0 +1,253 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertProjectSchema, insertPhotoSchema, insertDocumentSchema, insertMaterialTestSchema, insertReminderSchema, insertCalendarEventSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Configure multer for file uploads
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: uploadDir,
+    filename: (req, file, cb) => {
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${file.originalname}`;
+      cb(null, uniqueName);
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Project routes
+  app.get("/api/projects", async (req, res) => {
+    try {
+      const projects = await storage.getProjects();
+      res.json(projects);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.get("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  app.post("/api/projects", async (req, res) => {
+    try {
+      const projectData = insertProjectSchema.parse(req.body);
+      const project = await storage.createProject(projectData);
+      res.status(201).json(project);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid project data" });
+    }
+  });
+
+  app.patch("/api/projects/:id", async (req, res) => {
+    try {
+      const updates = insertProjectSchema.partial().parse(req.body);
+      const project = await storage.updateProject(req.params.id, updates);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid update data" });
+    }
+  });
+
+  app.delete("/api/projects/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteProject(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  // Photo routes
+  app.get("/api/projects/:projectId/photos", async (req, res) => {
+    try {
+      const photos = await storage.getProjectPhotos(req.params.projectId);
+      res.json(photos);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch photos" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/photos", upload.single("photo"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No photo file provided" });
+      }
+
+      const photoData = {
+        projectId: req.params.projectId,
+        filename: req.file.filename,
+        description: req.body.description || "",
+        latitude: req.body.latitude ? parseFloat(req.body.latitude) : null,
+        longitude: req.body.longitude ? parseFloat(req.body.longitude) : null,
+      };
+
+      const validatedData = insertPhotoSchema.parse(photoData);
+      const photo = await storage.createPhoto(validatedData);
+      res.status(201).json(photo);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid photo data" });
+    }
+  });
+
+  // Document routes
+  app.get("/api/projects/:projectId/documents", async (req, res) => {
+    try {
+      const documents = await storage.getProjectDocuments(req.params.projectId);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  app.post("/api/projects/:projectId/documents", upload.single("document"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No document file provided" });
+      }
+
+      const documentData = {
+        projectId: req.params.projectId,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        type: req.body.type || "other",
+        size: req.file.size,
+      };
+
+      const validatedData = insertDocumentSchema.parse(documentData);
+      const document = await storage.createDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid document data" });
+    }
+  });
+
+  // Material test routes
+  app.get("/api/material-tests", async (req, res) => {
+    try {
+      const category = req.query.category as string;
+      const tests = category 
+        ? await storage.getMaterialTestsByCategory(category)
+        : await storage.getMaterialTests();
+      res.json(tests);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch material tests" });
+    }
+  });
+
+  app.post("/api/material-tests", async (req, res) => {
+    try {
+      const testData = insertMaterialTestSchema.parse(req.body);
+      const test = await storage.createMaterialTest(testData);
+      res.status(201).json(test);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid test data" });
+    }
+  });
+
+  // Test results routes
+  app.get("/api/test-results", async (req, res) => {
+    try {
+      const results = await storage.getTestResults();
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch test results" });
+    }
+  });
+
+  // Reminder routes
+  app.get("/api/reminders", async (req, res) => {
+    try {
+      const reminders = await storage.getActiveReminders();
+      res.json(reminders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch reminders" });
+    }
+  });
+
+  app.post("/api/reminders", async (req, res) => {
+    try {
+      const reminderData = insertReminderSchema.parse(req.body);
+      const reminder = await storage.createReminder(reminderData);
+      res.status(201).json(reminder);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid reminder data" });
+    }
+  });
+
+  app.patch("/api/reminders/:id/complete", async (req, res) => {
+    try {
+      const completed = await storage.markReminderComplete(req.params.id);
+      if (!completed) {
+        return res.status(404).json({ message: "Reminder not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark reminder complete" });
+    }
+  });
+
+  // Calendar routes
+  app.get("/api/calendar/events", async (req, res) => {
+    try {
+      const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+      const events = await storage.getCalendarEvents(month, year);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch calendar events" });
+    }
+  });
+
+  app.post("/api/calendar/events", async (req, res) => {
+    try {
+      const eventData = insertCalendarEventSchema.parse(req.body);
+      const event = await storage.createCalendarEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid event data" });
+    }
+  });
+
+  // Stats route
+  app.get("/api/stats", async (req, res) => {
+    try {
+      const stats = await storage.getProjectStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Serve uploaded files
+  const express = (await import("express")).default;
+  app.use("/uploads", express.static(uploadDir));
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
