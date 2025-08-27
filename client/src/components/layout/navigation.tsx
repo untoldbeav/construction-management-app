@@ -23,7 +23,7 @@ export default function Navigation() {
   return (
     <>
       {/* Mobile Navigation */}
-      <nav className="lg:hidden bg-card border-b border-border">
+      <nav className="lg:hidden bg-card border-b border-border transition-colors">
         <div className="flex overflow-x-auto scrollbar-hide">
           {navigationItems.map((item) => {
             const Icon = item.icon;
@@ -48,7 +48,7 @@ export default function Navigation() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block lg:fixed lg:left-4 lg:top-24 lg:w-64 lg:z-40">
-        <nav className="bg-card rounded-lg border border-border p-4 sticky top-24">
+        <nav className="bg-card rounded-lg border border-border p-4 sticky top-24 transition-colors">
           <div className="space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon;

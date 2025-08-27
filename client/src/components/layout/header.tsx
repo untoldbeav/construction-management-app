@@ -1,8 +1,12 @@
-import { User, Wifi } from "lucide-react";
+import { User, Wifi, Sun, Moon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/contexts/theme-context";
 
 export default function Header() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50">
+    <header className="bg-card border-b border-border sticky top-0 z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3">
@@ -27,6 +31,21 @@ export default function Header() {
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-muted-foreground hidden sm:inline">Synced</span>
             </div>
+            
+            {/* Theme Toggle */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={toggleTheme}
+              className="w-9 h-9 p-0"
+              data-testid="button-theme-toggle"
+            >
+              {theme === "light" ? (
+                <Moon className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
+            </Button>
             
             {/* User Profile */}
             <button 
